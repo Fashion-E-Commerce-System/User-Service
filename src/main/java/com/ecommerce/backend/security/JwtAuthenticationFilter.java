@@ -17,45 +17,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private final JwtTokenProvider jwtTokenProvider;
-    private final RedisService redisService;
 
 
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider, RedisService redisService) {
+    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
         this.jwtTokenProvider = jwtTokenProvider;
-        this.redisService = redisService;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String token = resolveToken(request);
+        String token = jwtTokenProvider.resolveToken(request); // Delegate to JwtTokenProvider
         logger.debug("Authorization header: {}", request.getHeader("Authorization"));
         logger.debug("Resolved token: {}", token);
 
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            // Redis에 해당 accessToken logout 여부 확인
-            if (redisService.getValues(token) == null) {
-                Authentication authentication = jwtTokenProvider.getAuthentication(token);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                logger.info("Authentication set for user: {}", authentication.getName());
-            } else {
-                logger.warn("Invalid JWT token: This token is blacklisted");
-            }
+            Authentication authentication = jwtTokenProvider.getAuthentication(token);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            logger.info("Authentication set for user: {}", authentication.getName());
         } else {
             logger.debug("No JWT token found in request or token is invalid");
         }
 
 
         filterChain.doFilter(request, response);
-    }
-
-    private String resolveToken(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        logger.debug("Bearer token: {}", bearerToken);
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
     }
 }

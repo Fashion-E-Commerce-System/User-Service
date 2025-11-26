@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import jakarta.persistence.*;
-import java.util.List;
 
 @Getter
 @Setter
@@ -27,9 +26,10 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    // ✅ 권한 필드 추가
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "role")
-    private List<String> roles;
+    private Boolean active;
+
+    private String clubMemberStatus;
+
+    private String fashionNewsFrequency;
+
 }

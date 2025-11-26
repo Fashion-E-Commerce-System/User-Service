@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.ecommerce.backend.grpc";
+option java_outer_classname = "AuthProto";
+
+package auth;
+
+// The authentication service definition.
+service AuthService {
+  // Creates a user in the auth system
+  rpc CreateUser (CreateUserRequest) returns (AuthServiceResponse) {}
+
+  // Deletes a user from the auth system
+  rpc DeleteUser (DeleteUserRequest) returns (AuthServiceResponse) {}
+}
+
+// The request message containing the user's information for creation.
+message CreateUserRequest {
+  string name = 1;
+  string password = 2; // Should be the hashed password
+}
+
+// The request message containing the user's id for deletion.
+message DeleteUserRequest {
+  string userId = 1;
+}
+
+// The response message indicating the result of the operation.
+message AuthServiceResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -2,91 +2,76 @@ package com.ecommerce.backend.service;
 
 import com.ecommerce.backend.domain.User;
 import com.ecommerce.backend.dto.SignUpRequest;
+import com.ecommerce.backend.grpc.AuthGrpcClient;
 import com.ecommerce.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
-import org.springframework.security.core.Authentication;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.TimeUnit;
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final AuthenticationManagerBuilder authenticationManagerBuilder;
-    private final RedisService redisService;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthGrpcClient authGrpcClient;
 
     @Transactional
-    public TokenResponse login(SignUpRequest request) {
-        UsernamePasswordAuthenticationToken authenticationToken =
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword());
-
-        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
-
-        TokenResponse tokenResponse = jwtTokenProvider.createToken(authentication);
-
-        redisService.setValues(
-                authentication.getName(),
-                tokenResponse.getRefreshToken(),
-                jwtTokenProvider.getRefreshTokenValidityInSeconds(),
-                TimeUnit.SECONDS
-        );
-
-        return tokenResponse;
-    }
-
-    public void logout(String accessToken) {
-        if (!jwtTokenProvider.validateToken(accessToken)) {
-            throw new IllegalArgumentException("Invalid token");
+    public User createUser(SignUpRequest request) {
+        if (userRepository.findByName(request.getUsername()).isPresent()) {
+            throw new IllegalArgumentException("User already exists");
         }
 
-        Authentication authentication = jwtTokenProvider.getAuthentication(accessToken);
+        User user = User.builder()
+                .name(request.getUsername())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .build();
 
-        if (redisService.getValues(authentication.getName()) != null) {
-            redisService.deleteValues(authentication.getName());
+        User savedUser = userRepository.save(user);
+
+        // Call Auth service via gRPC
+        try {
+            authGrpcClient.callCreateUser(savedUser);
+        } catch (Exception e) {
+            // The gRPC client throws a RuntimeException, which will trigger a rollback
+            log.error("gRPC call failed, transaction will be rolled back.", e);
+            throw e; 
         }
-
-        Long expiration = jwtTokenProvider.getExpiration(accessToken);
-        redisService.setValues(accessToken, "logout", expiration, TimeUnit.MILLISECONDS);
+        
+        return savedUser;
     }
 
     @Transactional
-    public TokenResponse refresh(String refreshToken) {
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw new IllegalArgumentException("Invalid refresh token");
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+
+        userRepository.delete(user);
+
+        // Call Auth service via gRPC
+        try {
+            authGrpcClient.callDeleteUser(userId);
+        } catch (Exception e) {
+            // The gRPC client throws a RuntimeException, which will trigger a rollback
+            log.error("gRPC call failed, transaction will be rolled back.", e);
+            throw e;
         }
+    }
 
-        Authentication authentication = jwtTokenProvider.getAuthentication(refreshToken);
-
-        String savedRefreshToken = redisService.getValues(authentication.getName());
-        if (!refreshToken.equals(savedRefreshToken)) {
-            throw new IllegalArgumentException("Mismatched refresh token");
-        }
-
-        TokenResponse tokenResponse = jwtTokenProvider.createToken(authentication);
-
-        redisService.setValues(
-                authentication.getName(),
-                tokenResponse.getRefreshToken(),
-                jwtTokenProvider.getRefreshTokenValidityInSeconds(),
-                TimeUnit.SECONDS
-        );
-
-        Long expiration = jwtTokenProvider.getExpiration(refreshToken);
-        redisService.setValues(refreshToken, "logout", expiration, TimeUnit.MILLISECONDS);
-
-        return tokenResponse;
+    @Transactional(readOnly = true)
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
     }
 
     @Override
+    @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
@@ -94,7 +79,7 @@ public class UserService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getName())
                 .password(user.getPassword())
-                .roles(user.getRoles().toArray(new String[0]))
+                .authorities(java.util.Collections.emptyList()) // No roles in this service
                 .build();
     }
 }
