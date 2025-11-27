@@ -24,22 +24,21 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public User createUser(SignUpRequest request) {
-        if (userRepository.findByName(request.getUsername()).isPresent()) {
+        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("User already exists");
         }
 
         User user = User.builder()
-                .name(request.getUsername())
+                .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // Call Auth service via gRPC
+
         try {
             authGrpcClient.callCreateUser(savedUser);
         } catch (Exception e) {
-            // The gRPC client throws a RuntimeException, which will trigger a rollback
             log.error("gRPC call failed, transaction will be rolled back.", e);
             throw e; 
         }
@@ -48,38 +47,38 @@ public class UserService implements UserDetailsService {
     }
 
     @Transactional
-    public void deleteUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+    public void deleteUser(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + username));
 
         userRepository.delete(user);
 
-        // Call Auth service via gRPC
+
         try {
-            authGrpcClient.callDeleteUser(userId);
+            authGrpcClient.callDeleteUser(username);
         } catch (Exception e) {
-            // The gRPC client throws a RuntimeException, which will trigger a rollback
+
             log.error("gRPC call failed, transaction will be rolled back.", e);
             throw e;
         }
     }
 
     @Transactional(readOnly = true)
-    public User getUserById(Long userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + userId));
+    public User getUserByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + username));
     }
 
     @Override
     @Transactional(readOnly = true)
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByName(username)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getName())
+                .username(user.getUsername())
                 .password(user.getPassword())
-                .authorities(java.util.Collections.emptyList()) // No roles in this service
+                .authorities(java.util.Collections.emptyList())
                 .build();
     }
 }

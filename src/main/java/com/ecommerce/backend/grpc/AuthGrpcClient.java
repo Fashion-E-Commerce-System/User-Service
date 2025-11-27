@@ -14,10 +14,10 @@ public class AuthGrpcClient {
     private AuthServiceGrpc.AuthServiceBlockingStub authServiceBlockingStub;
 
     public void callCreateUser(User user) {
-        log.info("gRPC callCreateUser for user: {}", user.getName());
+        log.info("gRPC callCreateUser for user: {}", user.getUsername());
         try {
             CreateUserRequest request = CreateUserRequest.newBuilder()
-                    .setName(user.getName())
+                    .setUsername(user.getUsername())
                     .setPassword(user.getPassword())
                     .build();
 
@@ -27,18 +27,18 @@ public class AuthGrpcClient {
                 log.error("gRPC createUser failed: {}", response.getMessage());
                 throw new RuntimeException("gRPC call to Auth-Service failed: " + response.getMessage());
             }
-            log.info("gRPC createUser successful for user: {}", user.getName());
+            log.info("gRPC createUser successful for user: {}", user.getUsername());
         } catch (StatusRuntimeException e) {
             log.error("gRPC call to Auth-Service failed with status: {}", e.getStatus());
             throw new RuntimeException("gRPC call to Auth-Service failed", e);
         }
     }
 
-    public void callDeleteUser(Long userId) {
-        log.info("gRPC callDeleteUser for userId: {}", userId);
+    public void callDeleteUser(String username) {
+        log.info("gRPC callDeleteUser for userId: {}", username);
         try {
             DeleteUserRequest request = DeleteUserRequest.newBuilder()
-                    .setUserId(userId.toString())
+                    .setUsername(username)
                     .build();
 
             AuthServiceResponse response = authServiceBlockingStub.deleteUser(request);
@@ -46,7 +46,7 @@ public class AuthGrpcClient {
                 log.error("gRPC deleteUser failed: {}", response.getMessage());
                 throw new RuntimeException("gRPC call to Auth-Service failed: " + response.getMessage());
             }
-            log.info("gRPC deleteUser successful for userId: {}", userId);
+            log.info("gRPC deleteUser successful for userId: {}", username);
         } catch (StatusRuntimeException e) {
             log.error("gRPC call to Auth-Service failed with status: {}", e.getStatus());
             throw new RuntimeException("gRPC call to Auth-Service failed", e);

@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.Map;
+
 
 @RestController
 @RequestMapping("/users")
@@ -22,7 +22,7 @@ public class UserController {
     @PostMapping
     public ResponseEntity<User> signUp(@RequestBody SignUpRequest request) {
         User user = userService.createUser(request);
-        return ResponseEntity.created(URI.create("/users/" + user.getId())).body(user);
+        return ResponseEntity.created(URI.create("/users/" + user.getUsername())).body(user);
     }
     
     @GetMapping("/me")
@@ -30,15 +30,15 @@ public class UserController {
         return ResponseEntity.ok(userDetails);
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<User> getUserById(@PathVariable Long userId) {
-        User user = userService.getUserById(userId);
+    @GetMapping("/{username}")
+    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
+        User user = userService.getUserByUsername(username);
         return ResponseEntity.ok(user);
     }
 
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long userId) {
-        userService.deleteUser(userId);
+    @DeleteMapping("/{username}")
+    public ResponseEntity<Void> deleteUser(@PathVariable String username) {
+        userService.deleteUser(username);
         return ResponseEntity.noContent().build();
     }
 }
