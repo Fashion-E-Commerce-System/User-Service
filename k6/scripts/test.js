@@ -8,14 +8,14 @@ export let options = {
         { duration: '10s', target: 0 },
     ],
     thresholds: {
-        'http_req_duration': ['p(95)<200'], // 95% of requests must complete below 200ms
-        'http_req_failed': ['rate<0.01'],   // http errors should be less than 1%
+        'http_req_duration': ['p(95)<200'],
+        'http_req_failed': ['rate<0.01'],
     },
 };
 
 export default function () {
-    const uniqueId = 300 + __VU + (__ITER * 300);
-    const username = `testuser${uniqueId}`;
+    // 항상 유니크한 username 생성
+    const username = `testuser_${__VU}_${__ITER}_${Date.now()}`;
     const password = 'password123';
 
     // 1. Create a user
@@ -45,7 +45,7 @@ export default function () {
     console.log(`✅ User creation successful for ${username}. User ID: ${userId}`);
     sleep(1);
 
-    // 2. Login to get a token (assuming an Auth service is running on port 8081)
+    // 2. Login to get a token
     const loginPayload = JSON.stringify({
         username: username,
         password: password,
@@ -69,6 +69,7 @@ export default function () {
     }
 
     const accessToken = loginRes.json('accessToken');
+    console.log('✖️',accessToken);
     console.log(`✅ Login successful for ${username}`);
     sleep(1);
 
@@ -76,6 +77,7 @@ export default function () {
     const authHeaders = {
         headers: {
             'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
         },
     };
 
