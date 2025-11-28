@@ -48,6 +48,7 @@ public class UserService implements UserDetailsService {
 
     @Transactional
     public void deleteUser(String username) {
+        log.info("Deleting user {}", username);
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + username));
 

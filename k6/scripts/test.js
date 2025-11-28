@@ -96,7 +96,7 @@ export default function () {
     sleep(1);
 
     // 4. Delete user
-    const deleteRes = http.del(`http://localhost:8080/users/${userId}`, null, authHeaders);
+    const deleteRes = http.del(`http://localhost:8080/users/me`, null, authHeaders);
 
     check(deleteRes, {
         'Delete user successful': (r) => r.status === 204,

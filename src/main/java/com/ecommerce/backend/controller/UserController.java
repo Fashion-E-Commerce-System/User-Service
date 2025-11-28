@@ -30,15 +30,10 @@ public class UserController {
         return ResponseEntity.ok(userDetails);
     }
 
-    @GetMapping("/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
-        User user = userService.getUserByUsername(username);
-        return ResponseEntity.ok(user);
-    }
-
-    @DeleteMapping("/{username}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String username) {
-        userService.deleteUser(username);
+    @DeleteMapping("/me")
+    public ResponseEntity<Void> deleteMyAccount(@AuthenticationPrincipal UserDetails userDetails) {
+        userService.deleteUser(userDetails.getUsername());
         return ResponseEntity.noContent().build();
     }
+
 }
